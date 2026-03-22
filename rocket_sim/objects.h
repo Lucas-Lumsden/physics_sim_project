@@ -11,11 +11,11 @@ class rocket{
 
     public:
 
-    void init_rocket (float start_pos_x, float start_pos_y, float start_rot_z){
+    void init_rocket (float start_pos_x, float start_pos_y, float start_ang_z){
 
         pos.x = start_pos_x;
         pos.y = start_pos_y;
-        rot.z = start_rot_z;
+        rot.z = start_ang_z;
 
     }
 
@@ -26,9 +26,9 @@ class rocket{
 
     };
 
-    void set_ang(float new_ang){
+    void set_ang(float new_ang_z){
 
-        rot.z += new_ang;
+        rot.z = new_ang_z;
 
     }
 

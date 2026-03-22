@@ -1,14 +1,14 @@
 C:\msys64\mingw64\bin\g++.exe -fdiagnostics-color=always -g `
   "C:\Users\lucge\physics_sim_project\opengl_stuff\openglwin.cpp" `
-  "C:\Users\lucge\physics_sim_project\opengl_stuff\imgui\imgui.cpp" `
-  "C:\Users\lucge\physics_sim_project\opengl_stuff\imgui\imgui_demo.cpp" `
-  "C:\Users\lucge\physics_sim_project\opengl_stuff\imgui\imgui_draw.cpp" `
-  "C:\Users\lucge\physics_sim_project\opengl_stuff\imgui\imgui_impl_glfw.cpp" `
-  "C:\Users\lucge\physics_sim_project\opengl_stuff\imgui\imgui_impl_opengl3.cpp" `
-  "C:\Users\lucge\physics_sim_project\opengl_stuff\imgui\imgui_tables.cpp" `
-  "C:\Users\lucge\physics_sim_project\opengl_stuff\imgui\imgui_widgets.cpp" `
   "C:\Users\lucge\physics_sim_project\rocket_sim\math.cpp" `
   "C:\glad\src\glad.c" `
+  "C:\Users\lucge\physics_sim_project\opengl_stuff\imgui\imgui.o" `
+  "C:\Users\lucge\physics_sim_project\opengl_stuff\imgui\imgui_demo.o" `
+  "C:\Users\lucge\physics_sim_project\opengl_stuff\imgui\imgui_draw.o" `
+  "C:\Users\lucge\physics_sim_project\opengl_stuff\imgui\imgui_impl_glfw.o" `
+  "C:\Users\lucge\physics_sim_project\opengl_stuff\imgui\imgui_impl_opengl3.o" `
+  "C:\Users\lucge\physics_sim_project\opengl_stuff\imgui\imgui_tables.o" `
+  "C:\Users\lucge\physics_sim_project\opengl_stuff\imgui\imgui_widgets.o" `
   -o "C:\Users\lucge\physics_sim_project\opengl_stuff\openglwin.exe" `
   -I "C:\glfw-3.4.bin.WIN64\include" `
   -I "C:\glew-2.3.1\include" `
@@ -19,4 +19,5 @@ C:\msys64\mingw64\bin\g++.exe -fdiagnostics-color=always -g `
   -L "C:\glfw-3.4.bin.WIN64\lib-mingw-w64" `
   -lglfw3dll -lglew32 -lopengl32
 
+Write-Host "Running..."
 .\opengl_stuff\openglwin.exe
