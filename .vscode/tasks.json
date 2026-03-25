@@ -14,6 +14,7 @@
                 "-I", "C:\\glfw-3.4.bin.WIN64\\include",
                 "-I", "C:\\glew-2.3.1\\include",
                 "-I", "C:\\glad\\include",
+                "-I", "C:\\glm",
                 "-I", "C:\\Users\\lucge\\physics_sim_project",
                 "-L", "C:\\glew-2.3.1\\lib\\Release\\x64",
                 "-L", "C:\\glfw-3.4.bin.WIN64\\lib-mingw-w64",

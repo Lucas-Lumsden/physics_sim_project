@@ -1,3 +1,5 @@
+#ifndef objects_h
+#define objects_h
 #include <iostream>
 #include <cmath>
 #include <glm/glm.hpp>
@@ -7,53 +9,63 @@ struct vec1{
     float x, y, z;
 };
 
+struct EulerAngles{
+    double roll, pitch, yaw;
+};
+
 class rocket{
 
     public:
 
-    void init_rocket (float start_pos_x, float start_pos_y, float start_ang_z){
+    void init_rocket (float start_pitch, float start_yaw){
 
-        pos.x = start_pos_x;
-        pos.y = start_pos_y;
-        rot.z = start_ang_z;
+        pos.x = 0.0f;
+        pos.y = 0.0f;
+        pos.z = 0.0f;
+        
+        rot.y = start_yaw;
+        rot.z = start_pitch;
 
     }
 
-    void set_pos(float new_x, float new_y){
+    void set_pos(float new_x, float new_y, float new_z){
 
         pos.x = new_x;
         pos.y = new_y;
+        pos.z = new_z;
 
     };
 
-    void set_ang(float new_ang_z){
+    void set_ang(float new_ang_x, float new_ang_y, float new_ang_z){
 
+        rot.x = new_ang_x;
+        rot.y = new_ang_y;
         rot.z = new_ang_z;
-
-    }
-
-    glm::mat4 get_model_matrix() {
-
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(pos.x, pos.y, 1.0f)); //trans to world pos
-        model = glm::rotate(model, glm::radians(rot.z), glm::vec3(0.0f, 0.0f, 1.0f)); //rotates around (x,y,z)
-        return model;
 
     }
 
     vec1 get_pos(){
         return pos;
     }
-    vec1 get_rot(){
-        return rot;
+
+    
+    glm::mat4 get_model_matrix() {
+
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(pos.x, pos.y, pos.z)); //trans to world pos
+        model = glm::rotate(model, glm::radians(rot.x), glm::vec3(1.0f, 0.0f, 0.0f)); //rotates around (x,y,z)
+        model = glm::rotate(model, glm::radians(rot.y), glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(rot.z), glm::vec3(0.0f, 0.0f, 1.0f));
+        return model;
+
     }
+
 
     private:
 
-    vec1 acc;
     vec1 pos;
     vec1 rot;
 
-    float heading;
-
 };
+
+#endif //object_h
