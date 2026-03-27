@@ -166,6 +166,7 @@ int main(){
 
         if(ImGui::Button("Launch")){
             std::cout << "Launch clicked" << std::endl;
+            sim.init(sim.mass, sim.force, sim.start_pitch, sim.start_yaw, sim.bt, sim.dcoef, sim.area);
             sim.launch();
             scale = sim.calcScale();
 
