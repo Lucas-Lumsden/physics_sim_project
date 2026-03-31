@@ -22,6 +22,7 @@ static float camRadius = 5.0f;
 static glm::quat gVelFacing = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
 static bool gPrintedVelDebugHeader = false;
 static int gVelDebugCount = 0;
+static glm::quat gVelFacing2 = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
 
 void cursor_position_callback(GLFWwindow* window, double xpos, double ypos){
     
@@ -104,6 +105,7 @@ int main(){
     ImGui::StyleColorsDark();
 
     std::vector<float> path;
+    std::vector<float> path2;
     double lastTime = glfwGetTime();
     double frameDelay = 1.0/240.0;
 
@@ -177,6 +179,7 @@ int main(){
         if(ImGui::Button("Reset")){
             sim.reset();
             path.clear();
+            path2.clear();
         }
 
         ImGui::Spacing();
@@ -232,6 +235,13 @@ int main(){
             glColor3f(1.0f, 1.0f, 0.0f);
             for(int i = 0; i < (int)path.size(); i += 3)
                 glVertex3f(path[i], path[i+1], path[i+2]);
+        glEnd();
+
+        //path2 for object2
+        glBegin(GL_LINE_STRIP);
+            glColor3f(0.0f, 1.0f, 1.0f); // cyan
+            for(int i = 0; i < (int)path2.size(); i += 3)
+                glVertex3f(path2[i], path2[i+1], path2[i+2]);
         glEnd();
 
         if(sim.launched){
@@ -358,6 +368,118 @@ int main(){
 
             glEnd();
                 
+            glPopMatrix();
+
+            }
+
+        //object2 render
+        if(sim.launched){
+            float sx2 = (float)(sim.px2/scale)*1.8f - 0.9f;
+            float sy2 = (float)(sim.py2/scale)*1.8f - 0.9f;
+            float sz2 = (float)(sim.pz2/scale)*1.8f;
+
+            path2.push_back(sx2);
+            path2.push_back(sy2);
+            path2.push_back(sz2);
+
+            float size = 0.02f;
+
+            //point pyramid in dir of flight when vel > 0
+            glm::quat orientation2;
+            if(sim.vel2 > 1e-3){
+                glm::vec3 vhat2 = glm::normalize(glm::vec3((float)sim.vx2, (float)sim.vy2, (float)sim.vz2));
+                
+                //stable quaternion rotate nose
+                const glm::vec3 from = glm::vec3(0.0f, 1.0f, 0.0f);
+                const float d = glm::clamp(glm::dot(from, vhat2), -1.0f, 1.0f);
+                glm::quat target;
+                
+                if(d < -0.9999f){
+                    //fixed axis perpendicular to +Y (+X)
+                    target = glm::quat(0.0f, 1.0f, 0.0f, 0.0f);
+                } else {
+                    const glm::vec3 c = glm::cross(from, vhat2);
+                    target = glm::normalize(glm::quat(1.0f + d, c.x, c.y, c.z));
+                }
+
+                //quaternion sign stay the same (q and -q are the same rotation)
+                if(glm::dot(gVelFacing2, target) < 0.0f){
+                    target = -target;
+                }
+
+                //avoid instant axis switch at ~180°.
+                gVelFacing2 = glm::normalize(glm::slerp(gVelFacing2, target, 0.25f));
+                orientation2 = gVelFacing2;
+            
+            } else {
+                
+                //normalize
+                orientation2 = glm::normalize(glm::quat(
+                    (float)sim.q_w2,
+                    (float)sim.q_x2,
+                    (float)sim.q_y2,
+                    (float)sim.q_z2
+                ));
+                orientation2 = glm::conjugate(orientation2);
+
+                //reset cached value
+                gVelFacing2 = orientation2;
+
+            }
+
+            glPushMatrix();
+
+            glm::mat4 model2 = glm::mat4(1.0f);
+            model2 = glm::translate(model2, glm::vec3(sx2, sy2, sz2));
+            model2 = model2 * glm::mat4_cast(orientation2);
+            glMultMatrixf(glm::value_ptr(model2));
+
+            float nose[] = {0.0f, size*2, 0.0f};
+            float b1[] = {size, -size, size};
+            float b2[] = {-size, -size, size};
+            float b3[] = {-size, -size, -size};
+            float b4[] = {size, -size, -size};
+
+            glBegin(GL_TRIANGLES);
+
+                //front face - cyan for object2
+                glColor3f(0.0f, 1.0f, 1.0f);
+                glVertex3fv(nose);
+                glVertex3fv(b1);
+                glVertex3fv(b2);
+
+                //left face - magenta
+                glColor3f(1.0f, 0.0f, 1.0f);
+                glVertex3fv(nose);
+                glVertex3fv(b2);
+                glVertex3fv(b3);
+
+                //back face - yellow
+                glColor3f(1.0f, 1.0f, 0.0f);
+                glVertex3fv(nose);
+                glVertex3fv(b3);
+                glVertex3fv(b4);
+
+                //right face - white
+                glColor3f(1.0f, 1.0f, 1.0f);
+                glVertex3fv(nose);
+                glVertex3fv(b4);
+                glVertex3fv(b1);
+
+                //base triangle 1 - dark gray
+                glColor3f(0.3f, 0.3f, 0.3f);
+                glVertex3fv(b1);
+                glVertex3fv(b3);
+                glVertex3fv(b2);
+
+                //base triangle 2 - dark gray
+                glColor3f(0.3f, 0.3f, 0.3f);
+                glVertex3fv(b1);
+                glVertex3fv(b4);
+                glVertex3fv(b3);
+
+                glEnd();
+
             glPopMatrix();
 
             }

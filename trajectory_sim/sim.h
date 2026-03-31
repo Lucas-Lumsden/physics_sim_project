@@ -2,6 +2,9 @@
 #include "math.h"
 #include "objects.h"
 #include <algorithm>
+#include <iostream>
+#include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 struct SimState {
 
@@ -9,10 +12,7 @@ struct SimState {
     double airden;
     float start_pitch = 90.0f;
     float start_yaw = 0.0f;
-    double thrust_ang = 0.0f;
-    double aero_ang = 0.0f;          //place holders until i can determine how to calc the forces
-    double gyro_ang = 0.0f;
-    double ang = calc_ang(thrust_ang, aero_ang, gyro_ang, start_pitch); //currently only sets starting ang
+    double ang = calc_ang(start_pitch); //currently only sets starting ang
     
     double fx = calc_x(force, ang, start_yaw);
     double fy = calc_y(force, ang);
@@ -52,6 +52,30 @@ struct SimState {
     
     // current euler ang for render
     double roll_deg = 0.0, pitch_deg = 0.0, yaw_deg = 0.0;
+
+    //object2 physics state
+    double px2 = 0.0, py2 = 0.0, pz2 = 0.0;
+    double vx2 = 0.0, vy2 = 0.0, vz2 = 0.0;
+    double vel2 = 0.0;
+
+    //object2 orientation
+    double q_w2 = 1.0, q_x2 = 0.0, q_y2 = 0.0, q_z2 = 0.0;
+    double omega_x2 = 0.0, omega_y2 = 0.0, omega_z2 = 0.0;
+    double roll_deg2 = 0.0, pitch_deg2 = 0.0, yaw_deg2 = 0.0;
+
+    //object2 launch direction
+    double launch_dir_x2 = 0.0, launch_dir_y2 = 1.0, launch_dir_z2 = 0.0;
+
+    //turn rate, higher = faster turning
+    double pursuit_turn_rate = 1.0;
+
+    //delay before object2 starts pursuing
+    double pursuit_delay = 2.0;
+
+    //object2 starting position offset from object1 (meters)
+    double obj2_start_x = 1000.0;
+    double obj2_start_y = 500.0;
+    double obj2_start_z = 1000.0;
 
     object object1;
     object object2;
@@ -101,7 +125,8 @@ struct SimState {
         airden = 1.225;
         launched = false;
         
-        object1.init_object(i_start_pitch, i_start_yaw);       // CHECK for start params var
+        object1.init_object(i_start_pitch, i_start_yaw);
+        object2.init_object(i_start_pitch, i_start_yaw);
 
     }
 
@@ -110,12 +135,12 @@ struct SimState {
         px = 0.0; py = 0.0; pz = 0.0;
         vel = 0.0;
         t = 0;
-        
+
         //orientation to launch angle
         //body +Y axis (nose) points along pitch+yaw direction
         q_w = 1.0; q_x = 0.0; q_y = 0.0; q_z = 0.0;
         omega_x = 0.0; omega_y = 0.0; omega_z = 0.0;
-        
+
         //compute desired world direction from pitch/yaw
         //pitch: 90deg = straight up (+Y), 0deg = horizontal
         //yaw: rotation around +Y
@@ -146,31 +171,58 @@ struct SimState {
             q_w = 0.0; q_x = 1.0; q_y = 0.0; q_z = 0.0;
 
         } else {
-        
+
             q_w = 1.0 + dot;
             q_x = cross_x;
             q_y = cross_y;
             q_z = cross_z;
             const double q_mag = sqrt(q_w * q_w + q_x * q_x + q_y * q_y + q_z * q_z);
-            if(q_mag > 0.0){ q_w /= q_mag; q_x /= q_mag; q_y /= q_mag; q_z /= q_mag; }
+            
+            if(q_mag > 0.0){ q_w /= q_mag; q_x /= q_mag; 
+                q_y /= q_mag; q_z /= q_mag; 
+            }
+
         }
+
+        //launch object2 with same start conditions
+        //object2 is offset to the side/forward to start pursuit
+        vx2 = 0.0; vy2 = 0.0; vz2 = 0.0;
+        px2 = obj2_start_x; py2 = obj2_start_y; pz2 = obj2_start_z;
+        vel2 = 0.0;
+        q_w2 = q_w; q_x2 = q_x; q_y2 = q_y; q_z2 = q_z;
+        omega_x2 = 0.0; omega_y2 = 0.0; omega_z2 = 0.0;
+        launch_dir_x2 = dir_x; launch_dir_y2 = dir_y; launch_dir_z2 = dir_z;
+
+        object2.set_pos(px2, py2, pz2);
+        object2.set_ang(roll_deg2, pitch_deg2, yaw_deg2);
 
         launched = true;
 
     }
 
     void reset(){
-        px=0; py=0; pz=0;
-        vx=0; vy=0; vz=0;
-        vel=0;
-        ang = start_pitch; 
-        t=0;
+        px = 0; py = 0; pz = 0;
+        vx = 0; vy = 0; vz = 0;
+        vel = 0;
+        ang = start_pitch;
+        t = 0;
 
         //reset orientatiom
         q_w = 1.0; q_x = 0.0; q_y = 0.0; q_z = 0.0;
         omega_x = 0.0; omega_y = 0.0; omega_z = 0.0;
         roll_deg = 0.0; pitch_deg = 0.0; yaw_deg = 0.0;
-        
+
+        //reset object2
+        px2 = 10.0; py2 = 0.0; pz2 = 10.0;
+        vx2 = 0; vy2 = 0; vz2 = 0;
+        vel2= 0;
+        q_w2 = 1.0; q_x2 = 0.0; q_y2 = 0.0; q_z2 = 0.0;
+        omega_x2 = 0.0; omega_y2 = 0.0; omega_z2 = 0.0;
+        roll_deg2 = 0.0; pitch_deg2 = 0.0; yaw_deg2 = 0.0;
+
+        object2.set_pos(px2, py2, pz2);
+        object2.set_ang(roll_deg2, pitch_deg2, yaw_deg2);
+
         launched = false;
 
     }
@@ -181,12 +233,12 @@ struct SimState {
         double test_fy = calc_y(force, start_pitch);
         double test_fz = calc_z(force, start_pitch, start_yaw);
 
-        double test_px=0, test_py=0, test_pz=0;
-        double test_vx=0, test_vy=0, test_vz=0; 
-        double test_t=0, test_dt = 0.1; 
-        double test_vel=0; 
+        double test_px = 0, test_py = 0, test_pz = 0;
+        double test_vx = 0, test_vy = 0, test_vz = 0; 
+        double test_t = 0, test_dt  =  0.1; 
+        double test_vel = 0; 
         double test_ax, test_ay, test_az;
-        double max_x=0, max_y=0, max_z = 0;
+        double max_x = 0, max_y = 0, max_z  =  0;
         double test_den;
 
         while(test_t <= dur){
@@ -398,7 +450,195 @@ struct SimState {
         object1.set_pos(px, py, pz);
         object1.set_ang(roll_deg, pitch_deg, yaw_deg);
 
-        //console debug
+        //calculate distance to object1
+        const double to_obj1_x = px - px2;
+        const double to_obj1_y = py - py2;
+        const double to_obj1_z = pz - pz2;
+        const double dist_to_obj1_check = sqrt(to_obj1_x * to_obj1_x + to_obj1_y * to_obj1_y + to_obj1_z * to_obj1_z);
+
+        //object2 physics update
+        if(!launched || (py2 <= 0 && t > dt)) {
+            //object2 on ground
+        } else {
+
+            double cur_ax2 = 0.0, cur_ay2 = -9.8, cur_az2 = 0.0;
+
+            //object2 body axis from quaternion
+            double bx2, by2, bz2;
+            quatRotate(q_w2, q_x2, q_y2, q_z2, 0.0, 1.0, 0.0, bx2, by2, bz2);
+            const double bmag2 = sqrt(bx2 * bx2 + by2 * by2 + bz2 * bz2);
+            if(bmag2 > 0.0){ bx2 /= bmag2; 
+                by2 /= bmag2; bz2 /= bmag2;
+            }
+
+            //air-relative velocity for object2
+            const double vrel_x2 = vx2 - wind_x;
+            const double vrel_y2 = vy2 - wind_y;
+            const double vrel_z2 = vz2 - wind_z;
+            const double vrel2 = sqrt(vrel_x2 * vrel_x2 + vrel_y2 * vrel_y2 + vrel_z2 * vrel_z2);
+            vel2 = sqrt((vx2 * vx2) + (vy2 * vy2) + (vz2 * vz2));
+
+            //thrust for object2 during burn
+            if(t < bt){
+
+                const double thrust = force;
+                cur_ax2 += thrust * bx2 / mass;
+                cur_ay2 += thrust * by2 / mass;
+                cur_az2 += thrust * bz2 / mass;
+
+            }
+
+            double tor_x2 = 0.0, tor_y2 = 0.0, tor_z2 = 0.0;
+            double drag2 = 0.0;
+
+        if(vrel2 > 0){
+            if(py2 >= 90000)
+                            airden = 0;
+                    else if(py2 >= 84852)
+                            airden = 0.00001;
+                    else if(py2 >= 70000) 
+                            airden = 0.00008;
+                    else if(py2 >= 60000) 
+                            airden = 0.0003;
+                    else if(py2 >= 50000) 
+                            airden = 0.001;
+                    else if(py2 >= 40000) 
+                            airden = 0.004;
+                    else if(py2 >= 30000) 
+                            airden = 0.018;
+                    else if(py2 >= 20000) 
+                            airden = 0.088;
+                    else if(py2 >= 15000) 
+                            airden = 0.195;
+                    else if(py2 >= 11000) 
+                            airden = 0.364;
+                    else if(py2 >= 10000) 
+                            airden = 0.413;
+                    else if(py2 >= 5000) 
+                            airden = 0.736;
+                    else if(py2 >= 2000) 
+                            airden = 1.007;
+                    else if (py2 >=1000) 
+                            airden = 1.112;
+                    else airden = 1.225;
+
+
+                drag2 = calc_drag(vrel2, airden, dcoef, area);
+                const double vhat_x2 = vrel_x2 / vrel2;
+                const double vhat_y2 = vrel_y2 / vrel2;
+                const double vhat_z2 = vrel_z2 / vrel2;
+
+                const double drag_fx2 = -drag2 * vhat_x2;
+                const double drag_fy2 = -drag2 * vhat_y2;
+                const double drag_fz2 = -drag2 * vhat_z2;
+
+                cur_ax2 += drag_fx2 / mass;
+                cur_ay2 += drag_fy2 / mass;
+                cur_az2 += drag_fz2 / mass;
+
+                //stable alignment torque for object2
+                const double cx2 = by2 * vhat_z2 - bz2 * vhat_y2;
+                const double cy2 = bz2 * vhat_x2 - bx2 * vhat_z2;
+                const double cz2 = bx2 * vhat_y2 - by2 * vhat_x2;
+                const double sin_alpha2 = sqrt(cx2*cx2 + cy2*cy2 + cz2*cz2);
+
+                const double qbarA2 = 0.5 * airden * vrel2 * vrel2 * area;
+                const double k_align2 = qbarA2 * cn_alpha;
+
+                tor_x2 += k_align2 * cx2;
+                tor_y2 += k_align2 * cy2;
+                tor_z2 += k_align2 * cz2;
+
+                //angular damping for object2
+                tor_x2 -= ang_damp * omega_x2;
+                tor_y2 -= ang_damp * omega_y2;
+                tor_z2 -= ang_damp * omega_z2;
+            }
+
+            //pursuit guidance
+            if(t >= pursuit_delay){
+                //guide object2 toward object1
+                if(dist_to_obj1_check > 0.1){  //only pursue if not too close
+                    double desired_x = to_obj1_x / dist_to_obj1_check;
+                    double desired_y = to_obj1_y / dist_to_obj1_check;
+                    double desired_z = to_obj1_z / dist_to_obj1_check;
+
+                    //create quaternion pointing toward object1
+                    const glm::vec3 from(0.0f, 1.0f, 0.0f);
+                    const glm::vec3 desired_dir((float)desired_x, (float)desired_y, (float)desired_z);
+                    const float d = glm::clamp(glm::dot(from, desired_dir), -1.0f, 1.0f);
+
+                    glm::quat desired_quat;
+                    
+                    if(d < -0.9999f){
+                        
+                        desired_quat = glm::quat(0.0f, 1.0f, 0.0f, 0.0f);
+                    
+                        } else {
+                        
+                        const glm::vec3 c = glm::cross(from, desired_dir);
+                        desired_quat = glm::normalize(glm::quat(1.0f + d, c.x, c.y, c.z));
+
+                    }
+
+                    //smooth path toward orientation
+                    glm::quat current_q2((float)q_w2, (float)q_x2, (float)q_y2, (float)q_z2);
+                    if(glm::dot(current_q2, desired_quat) < 0.0f) desired_quat = -desired_quat;
+
+                    float slerp_factor = 1.0f - expf(-pursuit_turn_rate * dt);
+                    glm::quat new_q2 = glm::normalize(glm::slerp(current_q2, desired_quat, slerp_factor));
+                    q_w2 = new_q2.w; q_x2 = new_q2.x; q_y2 = new_q2.y; q_z2 = new_q2.z;
+
+                    //apply guidance acceleration
+                    const double guidance_strength = 20.0;  //m/s^2
+                    cur_ax2 += guidance_strength * desired_x;
+                    cur_ay2 += guidance_strength * desired_y;
+                    cur_az2 += guidance_strength * desired_z;
+
+                }
+            }
+
+            vx2 += cur_ax2 * dt;
+            vy2 += cur_ay2 * dt;
+            vz2 += cur_az2 * dt;
+            px2 += vx2 * dt;
+            py2 += vy2 * dt;
+            pz2 += vz2 * dt;
+
+            //ang accel to ang vel for object2
+            omega_x2 += (tor_x2 / moi) * dt;
+            omega_y2 += (tor_y2 / moi) * dt;
+            omega_z2 += (tor_z2 / moi) * dt;
+
+            //quaternion from ang vel for object2
+            double dq_w2 = 0.5 * (-q_x2 * omega_x2 - q_y2 * omega_y2 - q_z2 * omega_z2);
+            double dq_x2 = 0.5 * (q_w2 * omega_x2 + q_y2 * omega_z2 - q_z2 * omega_y2);
+            double dq_y2 = 0.5 * (q_w2 * omega_y2 - q_x2 * omega_z2 + q_z2 * omega_x2);
+            double dq_z2 = 0.5 * (q_w2 * omega_z2 + q_x2 * omega_y2 - q_y2 * omega_x2);
+
+            q_w2 += dq_w2 * dt;
+            q_x2 += dq_x2 * dt;
+            q_y2 += dq_y2 * dt;
+            q_z2 += dq_z2 * dt;
+
+            //normalize quaternion for object2
+            double q_mag2 = sqrt(q_w2 * q_w2 + q_x2 * q_x2 + q_y2 * q_y2 + q_z2 * q_z2);
+            if(q_mag2 > 0.0){
+                q_w2 /= q_mag2;
+                q_x2 /= q_mag2;
+                q_y2 /= q_mag2;
+                q_z2 /= q_mag2;
+            }
+
+            //convert euler angle for object2
+            EulerAngles angles2 = ToEulerAngles(q_w2, q_x2, q_y2, q_z2);
+            roll_deg2 = angles2.roll * 57.2958;
+            pitch_deg2 = angles2.pitch * 57.2958;
+            yaw_deg2 = angles2.yaw * 57.2958;
+
+            object2.set_pos(px2, py2, pz2);
+            object2.set_ang(roll_deg2, pitch_deg2, yaw_deg2);
+        }
         static int debug_count = 0;
         if(debug_count++ % 10 == 0){
 

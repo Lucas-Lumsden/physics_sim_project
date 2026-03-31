@@ -12,7 +12,7 @@ double calc_az(double fz, double mass);
 
 double calc_drag(double vel, double airden, double dcoef, double area);
 
-double calc_ang(double thrust_ang, double aero_ang, double gyro_ang, double pitch_deg);
+double calc_ang(double pitch_deg);
 
 EulerAngles ToEulerAngles(double w, double x, double y, double z);
 
